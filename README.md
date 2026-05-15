@@ -20,8 +20,8 @@ This repo gives you a **stable, reproducible setup** that works on Debian, Parro
 ## 🧩 Requirements
 
 - Podman ≥ 4.0  
-- podman-docker (for Docker API compatibility)  
-- docker-compose plugin (optional but recommended)  
+- podman-compose (recommended) or podman-docker (shim)  
+- docker-compose plugin (optional but **not** recommended with Podman)  
 - 15–20 GB free disk space  
 - Stable internet connection  
 
@@ -36,14 +36,25 @@ git clone https://github.com/Ghost-in-the-RLAIF-GaN-DNA-code-shell/podman-as-doc
 cd podman-as-docker
 ```
 
-### 2. Enable Podman’s Docker API socket
+### 2. Recommended: Use podman-compose (native)
+
+`podman-compose` is the most compatible compose tool when running Podman. Install it using your distribution packages or pip:
+
+```bash
+# Debian/Ubuntu (if package available)
+sudo apt install podman-compose
+# or via pip (user)
+python3 -m pip install --user podman-compose
+```
+
+### 3. Enable Podman’s Docker API socket (rootless)
 
 ```bash
 systemctl --user enable --now podman.socket
 export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock
 ```
 
-To make this permanent:
+To make the DOCKER_HOST export permanent:
 
 ```bash
 echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock' >> ~/.bashrc
@@ -53,13 +64,25 @@ echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock' >> ~/.bas
 
 ## 🚦 Start Greenbone
 
+This repo includes helper scripts in `scripts/` that perform sensible defaults and checks. The `start.sh` script prefers `podman-compose` and will fall back to `docker compose` if `podman-compose` is not present.
+
+Basic start (from repo root):
+
 ```bash
+./scripts/start.sh
+```
+
+If you prefer to run from a different download directory (for example following upstream community instructions), set DOWNLOAD_DIR:
+
+```bash
+export DOWNLOAD_DIR=$HOME/greenbone-community-container
 ./scripts/start.sh
 ```
 
 This will:
 
-- Ensure the Docker API socket is active  
+- Ensure the Podman socket is active  
+- Ensure a compose file exists (downloads one if missing)  
 - Start the full Greenbone stack  
 - Stream logs until all containers are healthy  
 
@@ -67,7 +90,7 @@ Access the UI:
 
 👉 https://localhost:8443
 
-Default credentials:
+Default credentials (change ASAP):
 
 - **admin / admin**
 
@@ -79,14 +102,7 @@ Default credentials:
 ./scripts/clean.sh
 ```
 
-This removes:
-
-- Containers  
-- Volumes  
-- Networks  
-- Stale Podman references  
-
-Useful when the stack becomes inconsistent.
+This removes containers, volumes and networks created by the stack. The script prefers `podman-compose down` when available and falls back to safe `podman` commands.
 
 ---
 
@@ -98,48 +114,33 @@ Useful when the stack becomes inconsistent.
 
 This checks:
 
+- Podman socket and service status  
 - Disk space  
 - DNS  
 - Feed connectivity  
-- SCAP/Notus logs  
-- Container health  
+- Container health and recent SCAP/Notus logs  
 
 ---
 
-## 🧠 Common Problems
+## 🧠 Podman notes and gotchas
 
-See:
+- The official `docker compose` plugin is Docker Engine specific. It may work with `podman-docker` for many cases, but networking and API edge cases make `podman-compose` the recommended option.
+- Rootless Podman cannot bind privileged ports (<1024). This repo exposes Greenbone on port **8443** to avoid that restriction.
+- `podman-compose` may handle network aliases slightly differently; if services cannot resolve each other create a network manually:
 
-- **notes/root-cause-analysis.md**  
-- **notes/scap-data-issues.md**
-
-These explain:
-
-- Why SCAP containers become unhealthy  
-- Why Podman networks get stuck  
-- Why port 443 fails under rootless mode  
-- How to fix corrupted dependency graphs
+```bash
+podman network create greenbone-net
+```
 
 ---
 
-## 🛠️ compose.yaml
+## 🧰 compose.yaml
 
-This compose file:
-
-- Uses port **8443** (rootless‑safe)  
-- Works with Podman’s Docker API  
-- Includes health checks  
-- Uses official Greenbone community containers
+The repository includes a compose file `compose.yaml` that uses port **8443** (rootless‑safe), health checks, and official Greenbone community images.
 
 ---
 
-# 🧰 scripts/clean.sh
-
-The helper scripts in `scripts/` are provided with a POSIX-friendly shebang; after cloning you may want to `chmod +x scripts/*.sh` so they are executable.
-
----
-
-# 🎯 Next Steps
+## 🎯 Next Steps
 
 Choose what you want next:
 
