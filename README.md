@@ -27,7 +27,7 @@ This repo gives you a **stable, reproducible setup** that works on Debian, Parro
 
 ---
 
-## ⚙️ Installation
+## ⚙️ Installation (Podman, recommended)
 
 ### 1. Clone the repository
 
@@ -62,7 +62,7 @@ echo 'export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock' >> ~/.bas
 
 ---
 
-## 🚦 Start Greenbone
+## 🚦 Start Greenbone (Podman)
 
 This repo includes helper scripts in `scripts/` that perform sensible defaults and checks. The `start.sh` script prefers `podman-compose` and will fall back to `docker compose` if `podman-compose` is not present.
 
@@ -134,18 +134,112 @@ podman network create greenbone-net
 
 ---
 
-## 🧰 compose.yaml
+## 🔁 Alternate: Official Docker install (Parrot OS / Debian derivatives)
 
-The repository includes a compose file `compose.yaml` that uses port **8443** (rootless‑safe), health checks, and official Greenbone community images.
+If you prefer to run the official Docker Engine (recommended by upstream Greenbone docs), the following steps will install Docker on Parrot OS (Debian derivative) and run the official Greenbone compose stack. This flow replaces Podman on the system and is the simplest way to match Greenbone documentation.
+
+**Prerequisites & Setup**
+
+1. Install basic dependencies:
+
+```bash
+sudo apt update && sudo apt install -y curl ca-certificates gnupg
+```
+
+2. Install Docker Engine (this will remove conflicting Podman shim packages):
+
+```bash
+# Remove conflicting packages
+for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt remove -y $pkg; done
+
+# Add Docker's official GPG key and repository
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine and the compose plugin
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+```
+
+3. Add your user to the docker group so you can run Docker without sudo (log out and back in after this step):
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+---
+
+## 📥 Downloading and Running the Containers (Docker)
+
+1. Create a directory to hold the compose file and related data:
+
+```bash
+export DOWNLOAD_DIR=$HOME/greenbone-community-container && mkdir -p "$DOWNLOAD_DIR"
+```
+
+2. Download the official `compose.yaml` provided by Greenbone:
+
+```bash
+curl -fsSL -o "$DOWNLOAD_DIR/compose.yaml" https://greenbone.github.io/docs/latest/_static/compose.yaml
+```
+
+3. Pull images and start the stack using the Docker Compose plugin:
+
+```bash
+docker compose -f "$DOWNLOAD_DIR/compose.yaml" pull
+docker compose -f "$DOWNLOAD_DIR/compose.yaml" up -d
+```
+
+---
+
+## 🔑 Secure Your Admin Account (Docker)
+
+Change the `admin` user's password immediately (replace `YourStrongPassword`):
+
+```bash
+docker compose -f "$DOWNLOAD_DIR/compose.yaml" exec -u gvmd gvmd gvmd --user=admin --new-password='YourStrongPassword'
+```
+
+If your password contains shell-sensitive characters, keep it wrapped in single quotes.
+
+---
+
+## 🌐 Accessing the Greenbone Security Assistant (GSA)
+
+Open your browser and navigate to:
+
+```
+https://127.0.0.1
+```
+
+Accept the self-signed certificate warning for local installs.
+
+---
+
+## 🛠️ Troubleshooting (Common Docker fix)
+
+If you encounter a `redis_socket_vol` or volume-related issue, stop the stack and remove the offending volume:
+
+```bash
+# Stop and remove the containers and network
+docker compose -f "$DOWNLOAD_DIR/compose.yaml" down
+# Remove the problematic volume
+docker volume rm greenbone-community-container_redis_socket_vol
+# Start again
+docker compose -f "$DOWNLOAD_DIR/compose.yaml" up -d
+```
 
 ---
 
 ## 🎯 Next Steps
 
-Choose what you want next:
+Choose one of the following and I'll implement it for you:
 
-- **Generate a GitHub release-ready ZIP**  
-- **Add systemd user services for auto‑start**  
-- **Add monitoring with health dashboards**  
+- Add an optional `docker-install.sh` script to automate the Docker installation (Debian/Parrot OS).  
+- Add a `download-compose.sh` helper that fetches the official compose.yaml into DOWNLOAD_DIR.  
+- Add a `docker` mode to `start.sh` that prefers Docker when `USE_DOCKER=1` is set.  
 
-Or tell me any changes you want and I’ll update the repo.
+Tell me which you want me to push next, or I can push all three as a single commit.
