@@ -1,0 +1,39 @@
+services:
+  gsad:
+    image: greenbone/gsad:stable
+    ports:
+      - "8443:443"
+    depends_on:
+      - gvmd
+    environment:
+      - GSAD_LOG_LEVEL=info
+
+  gvmd:
+    image: greenbone/gvmd:stable
+    depends_on:
+      - postgres
+      - notus-data
+      - scap-data
+
+  postgres:
+    image: greenbone/postgres:stable
+    environment:
+      - POSTGRES_DB=gvmd
+      - POSTGRES_USER=gvmd
+      - POSTGRES_PASSWORD=gvmd
+
+  scap-data:
+    image: greenbone/scap-data:stable
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/lib/gvm/scap-data/.completed"]
+      interval: 60s
+      timeout: 10s
+      retries: 20
+
+  notus-data:
+    image: greenbone/notus-data:stable
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/lib/gvm/notus/.completed"]
+      interval: 60s
+      timeout: 10s
+      retries: 20
