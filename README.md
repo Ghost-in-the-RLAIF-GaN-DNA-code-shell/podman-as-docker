@@ -5,15 +5,7 @@
 
 ## 🚀 Overview
 
-This repository provides a **fully working Podman‑based deployment** of the Greenbone Community Edition (OpenVAS).  
-It fixes the most common issues:
-
-- Rootless Podman cannot bind to port **443**  
-- Docker Compose compatibility requires **DOCKER_HOST**  
-- Podman does not remove networks/volumes automatically  
-- SCAP/Notus containers often become **unhealthy** during initial sync  
-
-This repo gives you a **stable, reproducible setup** that works on Debian, Parrot OS, Ubuntu, Fedora, and any system with Podman.
+This repository provides a **Podman-first deployment** of the Greenbone Community Edition (OpenVAS). It is designed to run using Podman (rootless) and `podman-compose` where possible. The Docker instructions are included for users who intentionally want to switch to Docker, but this repository's default and recommended path is Podman.
 
 ---
 
@@ -136,7 +128,7 @@ podman network create greenbone-net
 
 ## 🔁 Alternate: Official Docker install (Parrot OS / Debian derivatives)
 
-If you prefer to run the official Docker Engine (recommended by upstream Greenbone docs), the following steps will install Docker on Parrot OS (Debian derivative) and run the official Greenbone compose stack. This flow replaces Podman on the system and is the simplest way to match Greenbone documentation.
+If you intentionally want to run the official Docker Engine (recommended by upstream Greenbone docs), follow these manual steps. Note: switching to Docker is a deliberate system change and is not recommended for users who want to keep a Podman-first environment.
 
 **Prerequisites & Setup**
 
@@ -146,10 +138,11 @@ If you prefer to run the official Docker Engine (recommended by upstream Greenbo
 sudo apt update && sudo apt install -y curl ca-certificates gnupg
 ```
 
-2. Install Docker Engine (this will remove conflicting Podman shim packages):
+2. Install Docker Engine (this will remove conflicting Podman shim packages if present).
+Run these commands manually and review them before executing:
 
 ```bash
-# Remove conflicting packages
+# Remove conflicting packages (optional - run only if you intend to replace Podman with Docker)
 for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt remove -y $pkg; done
 
 # Add Docker's official GPG key and repository
@@ -180,7 +173,7 @@ sudo usermod -aG docker $USER
 export DOWNLOAD_DIR=$HOME/greenbone-community-container && mkdir -p "$DOWNLOAD_DIR"
 ```
 
-2. Download the official `compose.yaml` provided by Greenbone:
+2. Download the official `compose.yaml` provided by Greenbone (manual):
 
 ```bash
 curl -fsSL -o "$DOWNLOAD_DIR/compose.yaml" https://greenbone.github.io/docs/latest/_static/compose.yaml
@@ -236,10 +229,4 @@ docker compose -f "$DOWNLOAD_DIR/compose.yaml" up -d
 
 ## 🎯 Next Steps
 
-Choose one of the following and I'll implement it for you:
-
-- Add an optional `docker-install.sh` script to automate the Docker installation (Debian/Parrot OS).  
-- Add a `download-compose.sh` helper that fetches the official compose.yaml into DOWNLOAD_DIR.  
-- Add a `docker` mode to `start.sh` that prefers Docker when `USE_DOCKER=1` is set.  
-
-Tell me which you want me to push next, or I can push all three as a single commit.
+This repository remains Podman-first. If you intentionally want Docker tooling, follow the manual instructions above. I removed the automated Docker installer from the scripts/ directory to avoid accidental system changes.
